@@ -2,8 +2,8 @@
 - 👀 I’m a Game Developer
 - 📫 My email: utkan.suzmetas@gmail.com
 
-You can find example code in the repositories linked below. 
-I will continue to update and expand them as time permits.
+You can find example code in this repository. 
+I will update and enhance it as time allows.
 
 <!---
 UtkanS/UtkanS is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
