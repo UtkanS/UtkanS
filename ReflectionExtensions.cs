@@ -7,172 +7,121 @@ using UnityEngine;
 public static class ReflectionExtensions
 {
     #region GameObject
+
+    /// <summary>
+    /// Adds a component of type T to the GameObject and copies properties from a duplicate instance.
+    /// </summary>
+    /// <typeparam name="T">Type of the Component to add.</typeparam>
+    /// <param name="game">The target GameObject.</param>
+    /// <param name="duplicate">The source Component whose properties will be copied.</param>
+    /// <returns>The newly added Component.</returns>
     public static T AddComponent<T>(this GameObject game, T duplicate) where T : Component
     {
         T target = game.AddComponent<T>();
-        foreach (PropertyInfo x in typeof(T).GetProperties())
+        foreach (PropertyInfo property in typeof(T).GetProperties())
         {
-            if (x.CanWrite)
-                x.SetValue(target, x.GetValue(duplicate));
+            if (property.CanWrite)
+                property.SetValue(target, property.GetValue(duplicate)); // Copy writable properties.
         }
         return target;
     }
+
     #endregion
 
-    #region (GET) Fields and Properties
+    #region Fields and Properties
+
+    /// <summary>
+    /// Retrieves PropertyInfo for a specific property name.
+    /// </summary>
     public static PropertyInfo GetPropertyInfo(this object source, string propName, BindingFlags? flags = null)
         => source.GetType().GetProperty(propName, GetBindingFlags(flags));
 
-    public static object GetPropertyValue(this object source, PropertyInfo property)
-        => property?.GetValue(source, null);
-
-    public static object GetPropertyValue(this object source, string propName, BindingFlags? flags = null)
-        => GetPropertyInfo(source, propName, flags)?.GetValue(source, null);
-
+    /// <summary>
+    /// Retrieves FieldInfo for a specific field name.
+    /// </summary>
     public static FieldInfo GetFieldInfo(this object source, string fieldName, BindingFlags? flags = null)
         => source.GetType().GetField(fieldName, GetBindingFlags(flags));
 
-    public static object GetFieldValue(this object source, FieldInfo field)
-        => field?.GetValue(source);
-
-    public static object GetFieldValue(this object source, string fieldName, BindingFlags? flags = null)
-        => GetFieldInfo(source, fieldName, flags)?.GetValue(source);
-
-    /// <param name="declaredOnly">True to include only properties declared in the source type, false to include inherited ones as well</param>
-    public static PropertyInfo[] GetPropertyInfo(this object source, bool declaredOnly, BindingFlags? flags = null)
-        => GetPropertyInfo(source.GetType(), declaredOnly, flags);
-
-    /// <param name="declaredOnly">True to include only properties declared in the source type, false to include inherited ones as well</param>
-    public static FieldInfo[] GetFieldInfo(this object source, bool declaredOnly, BindingFlags? flags = null)
-        => GetFieldInfo(source.GetType(), declaredOnly, flags);
-
-    private static PropertyInfo[] GetPropertyInfo(this Type source, bool declaredOnly, BindingFlags? flags = null)
+    /// <summary>
+    /// Gets the value of a field or property by name.
+    /// </summary>
+    /// <param name="memberName">The name of the member to retrieve.</param>
+    /// <exception cref="MissingMemberException">Thrown if the member is not found.</exception>
+    public static object GetMemberValue(this object source, string memberName, BindingFlags? flags = null)
     {
-        PropertyInfo[] properties = source.GetProperties(GetBindingFlags(flags));
+        FieldInfo field = source.GetFieldInfo(memberName, flags);
+        if (field != null) return field.GetValue(source);
 
-        if (declaredOnly)
-            properties = properties.Where(p => p.DeclaringType == source).ToArray();
+        PropertyInfo property = source.GetPropertyInfo(memberName, flags);
+        if (property != null) return property.GetValue(source);
 
-        return properties;
+        throw new MissingMemberException($"Member '{memberName}' not found in type {source.GetType().FullName}.");
     }
 
-    private static FieldInfo[] GetFieldInfo(this Type source, bool declaredOnly, BindingFlags? flags = null)
+    /// <summary>
+    /// Retrieves all field and property values of a specific type.
+    /// </summary>
+    public static IEnumerable<object> GetValuesByType(this object source, Type type = null, bool declaredOnly = false, BindingFlags? flags = null)
     {
-        FieldInfo[] fields = source.GetFields(GetBindingFlags(flags));
+        BindingFlags bindingFlags = GetBindingFlags(flags);
 
-        if (declaredOnly)
-            fields = fields.Where(f => f.DeclaringType == source).ToArray();
+        // Get field values.
+        var fields = source.GetType().GetFields(bindingFlags)
+            .Where(f => !declaredOnly || f.DeclaringType == source.GetType())
+            .Select(f => f.GetValue(source));
 
-        return fields;
+        // Get property values.
+        var properties = source.GetType().GetProperties(bindingFlags)
+            .Where(p => (!declaredOnly || p.DeclaringType == source.GetType()) && p.CanRead)
+            .Select(p => p.GetValue(source));
+
+        // Combine fields and properties, filtering by type if specified.
+        return fields.Concat(properties).Where(value => type == null || value?.GetType() == type);
     }
 
-    /// <param name="type">Specify a type to limit selected values</param>
-    public static IEnumerable<object> GetPropertiesByType(this object source, Type type = null, bool declaredOnly = false, BindingFlags? flags = null)
-        => GetPropertyInfo(source, declaredOnly, flags)
-            .Select(item => item.GetValue(source, null))
-            .Where(value => type == null || value.GetType() == type);
-
-    /// <param name="type">Specify a type to limit selected values</param>
-    public static IEnumerable<object> GetFieldsByType(this object source, Type type = null, bool declaredOnly = false, BindingFlags? flags = null)
-        => GetFieldInfo(source, declaredOnly, flags)
-            .Select(item => item.GetValue(source))
-            .Where(value => type == null || value.GetType() == type);
-
-    public static (bool, T) GetFieldValue<T>(this object obj, string value, BindingFlags? flags = null)
+    /// <summary>
+    /// Sets the value of a field or property by name.
+    /// </summary>
+    /// <typeparam name="T">Type of the value being set.</typeparam>
+    /// <returns>True if the value was set successfully, false otherwise.</returns>
+    public static bool SetMemberValue<T>(this object obj, string memberName, T value, BindingFlags? flags = null)
     {
-        Type type = obj.GetType();
-        FieldInfo fieldInfo = type.GetField(value, GetBindingFlags(flags));
-
-        return fieldInfo != null && typeof(T).IsAssignableFrom(fieldInfo.FieldType) ?
-            (true, (T)fieldInfo.GetValue(obj)) : (false, default);
-    }
-
-    public static (bool, T) GetPropertyValue<T>(this object obj, string value, BindingFlags? flags = null)
-    {
-        Type type = obj.GetType();
-        PropertyInfo propertyInfo = type.GetProperty(value, GetBindingFlags(flags));
-
-        return propertyInfo != null && typeof(T).IsAssignableFrom(propertyInfo.PropertyType)
-            ? (true, (T)propertyInfo.GetValue(obj)) : (false, default);
-    }
-
-    public static T GetValue<T>(this object obj, string name, BindingFlags? flags = null)
-    {
-        Type type = obj.GetType();
-
-        (bool foundField, T fieldValue) = obj.GetFieldValue<T>(name, flags);
-        if (foundField) return fieldValue;
-
-        (bool foundProperty, T propertyValue) = obj.GetPropertyValue<T>(name, flags);
-        if (foundProperty) return propertyValue;
-
-        throw new MissingMemberException($"Member '{name}' not found in type {type.FullName}.");
-    }
-    #endregion
-
-    #region (SET) Fields and Properties
-    public static bool SetField<T>(this object obj, string fieldName, T value, BindingFlags? flags = null)
-    {
-        Type type = obj.GetType();
-        FieldInfo fieldInfo = type.GetField(fieldName, GetBindingFlags(flags));
-
-        if (fieldInfo == null)
-            return false;
-
-        if (fieldInfo.FieldType == typeof(T))
+        FieldInfo field = obj.GetFieldInfo(memberName, flags);
+        if (field != null && field.FieldType == typeof(T))
         {
-            fieldInfo.SetValue(obj, value);
+            field.SetValue(obj, value);
             return true;
         }
 
-        throw new ArgumentException($"Field '{fieldName}' is of type {fieldInfo.FieldType}, but attempted to set with type {typeof(T)}.");
-    }
-
-    public static bool SetProperty<T>(this object obj, string propertyName, T value, BindingFlags? flags = null)
-    {
-        Type type = obj.GetType();
-        PropertyInfo propInfo = type.GetProperty(propertyName, GetBindingFlags(flags));
-
-        if (propInfo == null)
-            return false;
-
-        if (propInfo.PropertyType == typeof(T))
+        PropertyInfo property = obj.GetPropertyInfo(memberName, flags);
+        if (property != null && property.PropertyType == typeof(T))
         {
-            propInfo.SetValue(obj, value);
+            property.SetValue(obj, value);
             return true;
         }
 
-        throw new ArgumentException($"Property '{propertyName}' is of type {propInfo.PropertyType}, but attempted to set with type {typeof(T)}.");
+        return false;
     }
 
-    public static bool SetFieldOrProperty<T>(this object obj, string memberName, T value)
-    {
-        if (obj.SetField(memberName, value)) return true;
-        else if (obj.SetProperty(memberName, value)) return true;
-        else return false;
-    }
-
+    /// <summary>
+    /// Creates a shallow copy of the source object.
+    /// </summary>
     public static T Clone<T>(this T source, BindingFlags? flags = null) where T : new()
     {
         T clone = new();
-        CopyPropertiesFrom(clone, source, flags);
-        CopyFieldsFrom(clone, source, flags);
+        CopyMembers(clone, source, flags); // Copy fields and properties.
         return clone;
     }
 
-    public static T CopyValuesFrom<T>(this T target, T source, BindingFlags? flags = null)
+    /// <summary>
+    /// Copies all fields and properties from one object to another.
+    /// </summary>
+    public static void CopyMembers<T>(this T target, T source, BindingFlags? flags = null)
     {
-        CopyPropertiesFrom(target, source, flags);
-        CopyFieldsFrom(target, source, flags);
-        return target;
-    }
+        BindingFlags bindingFlags = GetBindingFlags(flags);
 
-    public static void CopyPropertiesFrom<T>(this T target, T source, BindingFlags? flags = null)
-    {
-        Type type = typeof(T);
-        PropertyInfo[] properties = flags.HasValue ? type.GetProperties(GetBindingFlags(flags)) : type.GetProperties();
-
-        foreach (PropertyInfo property in properties)
+        // Copy properties.
+        foreach (PropertyInfo property in typeof(T).GetProperties(bindingFlags))
         {
             if (property.CanRead && property.CanWrite)
             {
@@ -180,22 +129,20 @@ public static class ReflectionExtensions
                 property.SetValue(target, value);
             }
         }
-    }
 
-    public static void CopyFieldsFrom<T>(this T target, T source, BindingFlags? flags = null)
-    {
-        Type type = typeof(T);
-        FieldInfo[] fields = flags.HasValue ? type.GetFields(GetBindingFlags(flags)) : type.GetFields();
-
-        foreach (FieldInfo field in fields)
+        // Copy fields.
+        foreach (FieldInfo field in typeof(T).GetFields(bindingFlags))
         {
             object value = field.GetValue(source);
             field.SetValue(target, value);
         }
     }
+
     #endregion
 
+    /// <summary>
+    /// Determines the BindingFlags to use for reflection.
+    /// </summary>
     private static BindingFlags GetBindingFlags(BindingFlags? flags = null)
         => flags ?? (BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 }
-
