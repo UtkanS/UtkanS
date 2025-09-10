@@ -1,13 +1,21 @@
-Hi there! 👋
-I'm Utkan Süzmetaş (@UtkanS)
+# Hi, I am Utkan
 
-👀 About Me:
-I'm a Computer Engineer and Game Developer passionate about creating immersive experiences and writing clean, efficient code.
+Computer engineer and solo game developer. I build systems that are small, fast, and easy to read. Most of my work is in Unity and C#.
 
-📫 Contact Me:
-Email: utkan.suzmetas@gmail.com
+## Now
+- Building a high-fantasy RPG in Unity as a solo dev
+- Sharing small, focused C# utilities (one script at a time)
 
-<!---
-UtkanS/UtkanS is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-You can click the Preview link to take a look at your changes.
---->
+## What I enjoy
+- Clean APIs and practical naming
+- Data-driven design and mod-friendly tools
+- Performance wins that do not hurt clarity
+
+## Code samples
+- [AdaptiveNumber](https://github.com/UtkanS/adaptive-number) — integer type that upgrades to BigInteger
+
+## Tech
+C#, Unity, .NET, LINQ, Addressables, BigInteger, Git
+
+## Contact
+utkan.suzmetas@gmail.com
