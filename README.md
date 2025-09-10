@@ -12,7 +12,7 @@ Computer engineer and solo game developer. I build systems that are small, fast,
 - Performance wins that do not hurt clarity
 
 ## Code samples
-- [AdaptiveNumber](https://github.com/UtkanS/adaptive-number) — integer type that upgrades to BigInteger
+- [AdaptiveNumber](https://github.com/UtkanS/adaptive-number) => integer type that upgrades to BigInteger
 
 ## Tech
 C#, Unity, .NET, LINQ, Addressables, BigInteger, Git
